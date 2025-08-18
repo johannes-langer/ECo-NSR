@@ -1,0 +1,13 @@
+DATA:
+  path: '/data/langer/'
+  RAVEN:
+    num_samples: 100    # default
+    seed: 1234          # default
+    fair: 1             # use fair dataset
+    val: 2              # default
+    test: 2             # default
+    save: 1             # default
+    cocoapi: False      # default
+    train_ratio: 0.7
+    val_ratio: 0.15
+    test_ratio: 0.15
