@@ -1,7 +1,7 @@
 DATA:
   path: '/data/langer/'
   RAVEN:
-    num_samples: 100    # default
+    num_samples: 10000  # default
     seed: 1234          # default
     fair: 1             # use fair dataset
     val: 2              # default
@@ -11,3 +11,12 @@ DATA:
     train_ratio: 0.7
     val_ratio: 0.15
     test_ratio: 0.15
+    json_path: 'outputs/data/'
+  RavenShapes:
+    dataset_file: 'outputs/data/RavenShapes.csv'
+SEGMENTATION:
+  DATASETS:
+    TRAIN: ['raven-f_train',]
+    VAL: ['raven-f_val',]
+    TEST: ['raven-f_test',]
+  
