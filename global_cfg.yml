@@ -14,9 +14,28 @@ DATA:
     json_path: 'outputs/data/'
   RavenShapes:
     dataset_file: 'outputs/data/RavenShapes.csv'
+MACHINE:
+  num_gpus: 1
 SEGMENTATION:
   DATASETS:
     TRAIN: ['raven-f_train',]
     VAL: ['raven-f_val',]
     TEST: ['raven-f_test',]
-  
+  TRAINING:
+    seed: 110200
+    max_epochs: 50
+    batch_size: 128
+    n_workers: 16
+    lr: 0.00001
+    checkpoint_every: 1 # checkpoint interval
+    val_every: 1        # validation interval
+    output_dir: 'outputs/segmentation'
+  MODEL:
+    ROI_per_image: 64
+    ROI_num_classes: 1
+  EARLY_STOPPING:
+    enable: True
+    patience: 7
+    interval: 1
+    metric: 'bbox/AP'
+    mode: 'max'

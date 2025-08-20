@@ -9,7 +9,7 @@ from detectron2.data.datasets import register_coco_instances
 from detectron2.structures import BoxMode
 from tqdm import tqdm
 
-from data.utils import convert_stringlist, get_xml
+from src.data.utils import convert_stringlist, get_xml
 
 
 # find top directory
