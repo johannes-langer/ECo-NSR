@@ -12,6 +12,14 @@ loggers:
     level: INFO
     handlers: []
     propagate: no
+  representation_dataset_csv:
+    level: INFO
+    handlers:  []
+    propagate: no
+  train_vae:
+    level: INFO
+    handlers: []
+    propagate: no
 root:
   level: INFO
   handlers: [console]

@@ -1,44 +1,126 @@
-import ast
 import logging
 import os
+import re
+import sys
 from pathlib import Path
+from typing import Callable, Optional, Union
 
+import lightning as L
 import numpy as np
 import pandas as pd
-import pycocotools.mask as mask_util
 import torch
-import torchvision.transforms.functional as TF
-from torch.utils.data import Dataset
+from lightning.pytorch.utilities.types import EVAL_DATALOADERS
+from torch.utils.data import DataLoader, Dataset, random_split
+from torchvision.transforms import Compose, Resize, ToTensor
 from tqdm import tqdm
+from yacs.config import CfgNode
 
-from .utils import get_xml
+CWD = [p for p in Path(__file__).parents if p.stem == "eco-nsr"][0]
+sys.path.append(CWD.as_posix())
 
-from .RAVEN_FAIR.src.const import TYPE_VALUES as SHAPES
+from src.data.RAVEN_FAIR.src.const import TYPE_VALUES as SHAPES  # noqa: E402
+from src.data.utils import convert_stringlist, get_xml  # noqa: E402
+
+
+class RavenShapesDataModule(L.LightningDataModule):
+    """
+    PyTorch Lightning DataModule for RAVEN-F.
+    """
+
+    def __init__(self, cfg: CfgNode, pin_memory : bool = False):
+        super().__init__()
+
+        self.cfg = cfg
+        self.pin = pin_memory
+
+        self.image_dir = os.path.join(cfg.DATA.path, "RAVEN-F")
+        self.dataset_file = os.path.join(CWD, cfg.DATA.RavenShapes.dataset_file)
+        self.transform = Compose([
+            ToTensor(),
+            Resize((
+                cfg.REPRESENTATION.TRAINING.patch_size,
+                cfg.REPRESENTATION.TRAINING.patch_size,
+            )),
+            lambda x: x[0].unsqueeze(0),  # only one channel is required
+        ])
+
+    def setup(self, *args, **kwargs) -> None:
+        """
+        Create dataset and splits.
+        """
+        self.ds = RavenShapes(self.image_dir, self.dataset_file, self.transform)
+        self.train, self.val, self.test = random_split(
+            self.ds, self.cfg.DATA.RavenShapes.split, torch.Generator().manual_seed(self.cfg.REPRESENTATION.TRAINING.seed)
+        )
+
+    def train_dataloader(self) -> DataLoader:
+        """ """
+        return DataLoader(
+            self.train,
+            batch_size = self.cfg.REPRESENTATION.TRAINING.batch_size,
+            num_workers = self.cfg.REPRESENTATION.TRAINING.num_workers,
+            pin_memory = self.pin,
+            persistent_workers = True,
+            shuffle = True,
+        )
+
+    def val_dataloader(self) -> DataLoader:
+        """ """
+        return DataLoader(
+            self.val,
+            batch_size = self.cfg.REPRESENTATION.TRAINING.batch_size,
+            num_workers = self.cfg.REPRESENTATION.TRAINING.num_workers,
+            pin_memory = self.pin,
+            persistent_workers = True,
+            shuffle = False,
+        )
+
+    def test_dataloader(self) -> DataLoader:
+        """ """
+        return DataLoader(
+            self.test,
+            batch_size = self.cfg.REPRESENTATION.TRAINING.batch_size,
+            num_workers = self.cfg.REPRESENTATION.TRAINING.num_workers,
+            pin_memory = self.pin,
+            persistent_workers = True,
+            shuffle = False,
+        )
+
+    def predict_dataloader(self) -> DataLoader:
+        """ """
+        return DataLoader(
+            self.ds,
+            batch_size = self.cfg.REPRESENTATION.TRAINING.batch_size,
+            num_workers = self.cfg.REPRESENTATION.TRAINING.num_workers,
+            pin_memory = self.pin,
+            persistent_workers = True,
+            shuffle = False,
+        )
 
 
 class RavenShapes(Dataset):
     """
-    Torch Dataset Class for RAVEN-F (shapes only), meaning it produces panels with shape masks.
+    Torch Dataset Class for RAVEN-F (shapes only), meaning it produces single-shape crops of panels.
+    This Dataset is used for representation training. Uses bounding box annotations.
     """
 
     def __init__(
         self,
         image_dir: str,
         dataset_file: str,
-        transform=None,
-        mask_transform=None,
-        target_transform=None,
-        apply_mask=True,
+        transform: Optional[Callable] = None,
     ) -> None:
         """
         RavenShapes Dataset. Does not respect the train-test split used in the directory. Whill be split later using torch's random_split.
 
-        ### PARAMETERS
-        - `image_dir` (str) : Directory containing the RAVEN(-F) dataset.
-        - `dataset_file` (str) : Path to the dataset `.csv` file. If the file does not exist, it will be created.
-        - `transform` (function) : Transformation to apply to the image.
-        - `mask_transform` (function) : Transformation to apply to the mask. If `None`, `transform` will be used. If you need a transform for img but no transform for mask, use the identity: `lambda x: x`.
-        - `target_transform` (function) : Transformation to apply to the target.
+        Parameters
+        ----------
+        image_dir : str
+            Path to RAVEN-F directory (including 'RAVEN-F')
+        dataset_file : str
+            Path to the dataset ``.csv`` file. If the file does not exist, it will be created.
+        transform : Callable (Optional)
+            Transformations to apply to the image
         """
         self.img_dir = image_dir
         if not os.path.exists(dataset_file):
@@ -47,23 +129,17 @@ class RavenShapes(Dataset):
         self.img_labels = pd.read_csv(dataset_file)
 
         self.transform = transform
-        self.mask_transform = transform if mask_transform is None else mask_transform
-        self.target_transform = target_transform
-
-        self.apply_mask = apply_mask
 
     def __len__(self) -> int:
         return len(self.img_labels)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Union[torch.Tensor, np.ndarray]:
         """
-        Get item of index `idx` in the format of (image, mask), with both image and mask being of type `torch.Tensor`.
+        Get bounding box crop of item `idx`.
         """
         item_data = self.img_labels.iloc[idx]
         img_file = os.path.join(self.img_dir, item_data[0])
         ids = item_data[1].split("_")
-
-        label = item_data[2]
 
         def get_id(id: int) -> int:
             return int(ids[id])
@@ -73,6 +149,8 @@ class RavenShapes(Dataset):
             img_array = npz["image"][get_id(1)]
             img = np.tile(img_array, (3, 1, 1)).transpose([1, 2, 0])
 
+        height, width, _ = img.shape
+
         # get shape metadata
         metadata = get_xml(img_file[:-4] + ".xml")
         comps = metadata["Data"]["Panels"]["Panel"][get_id(1)]["Struct"]["Component"]
@@ -81,65 +159,60 @@ class RavenShapes(Dataset):
         ents = ents if type(ents) is list else [ents]
         ent = ents[get_id(3)]
 
-        # get poly mask
-        poly = [(x + 0.5, y + 0.5) for x, y in ast.literal_eval(ent["@mask"])]
-        poly = [p for x in poly for p in x]
-        poly = [poly]
+        real_bbox = convert_stringlist(ent["@real_bbox"])
 
-        # create mask based on detectron2's polygon_to_bitmask, but use only cocoapi for easier portability
-        width, height = img.shape[:2]
-        if len(poly) == 0:
-            mask = np.zeros((height, width)).astype(bool)
-        else:
-            rles = mask_util.frPyObjects(poly, height, width)
-            rle = mask_util.merge(rles)
-            mask = mask_util.decode(rle).astype(np.uint8)
+        # calculate bounding box
+        center_x = np.ceil(real_bbox[1] * width)
+        center_y = np.ceil(real_bbox[0] * height)
+        ent_width = np.ceil(real_bbox[3] * width)
+        ent_height = np.ceil(real_bbox[2] * height)
+        bbox = [
+            np.floor(center_x - 0.5 * ent_width),
+            np.floor(center_y - 0.5 * ent_height),
+            np.ceil(center_x + 0.5 * ent_width),
+            np.ceil(center_y + 0.5 * ent_height),
+        ]
+
+        # crop image
+        img = img[int(bbox[1]) : int(bbox[3]), int(bbox[0]) : int(bbox[2]), :]
 
         if self.transform:
             img = self.transform(img)
-        if self.mask_transform:
-            mask = self.mask_transform(mask)
-        if self.target_transform:
-            label = self.target_transform(label)
 
-        img = img.astype(np.float32) / 255
-        mask = mask.astype(np.float32)
+        return img
 
-        if self.apply_mask:
-            img = img + ((1 - mask).reshape(mask.shape[0], mask.shape[1], 1))
-            img = img.clip(max=1)
-
-        return (TF.to_tensor(img), TF.to_tensor(mask).to(torch.float32))
-
-    def create_dataset_csv(self, dataset_file: str) -> bool:
+    def create_dataset_csv(self, dataset_file: str) -> None:
         """
         Called in the constructor, if no dataset .csv file is found. Creates a dataset .csv file.
-        The main loop follows closely the implementation of segmentation.dataset_registration.format_raven
+        The main loop follows closely the implementation of dataset_registration.format_raven
+
+        Parameters
+        ----------
+        dataset_file : str
+            Path to the to-be-created file
         """
-        log = logging.getLogger("CREATE RAVEN DATASET CSV")
-        log.info("Creating RAVEN .csv file. This should only happen once.")
+        log = logging.getLogger("representation_dataset_csv")
+        log.info(
+            "Creating .csv file for the representation torch.Dataset. This should only happen once."
+        )
 
         img_file = []
         shape_id = []
         shape_type = []
 
-        ##### uncomment for no overlap version, comment three lines after #####
-        # ics = re.compile('in_center_single_out_center_single')
-        # icd = re.compile('in_distribute_four_out_center_single')
-        # files = Path(self.img_dir).rglob('*.xml*')
-        # files = list(files)
-        # kill = []
-        # for idx, f in enumerate(files):
-        #     if ics.match(f.parent.stem):
-        #         kill.append(idx)
-        #     if icd.match(f.parent.stem):
-        #         kill.append(idx)
-        # files = [f for idx, f in enumerate(files) if idx not in kill]
-        # total_iterations = len(files)
-
-        files = Path(self.img_dir).rglob("*.xml")
-        total_iterations = len(list(files))
-        files = Path(self.img_dir).rglob("*.xml")
+        # exclude patterns which contain overlapping shapes
+        ics = re.compile("in_center_single_out_center_single")
+        icd = re.compile("in_distribute_four_out_center_single")
+        files = Path(self.img_dir).rglob("*.xml*")
+        files = list(files)
+        kill = []
+        for idx, f in enumerate(files):
+            if ics.match(f.parent.stem):
+                kill.append(idx)
+            if icd.match(f.parent.stem):
+                kill.append(idx)
+        files = [f for idx, f in enumerate(files) if idx not in kill]
+        total_iterations = len(files)
 
         # Loop Level 1: Files
         for id1, l1 in tqdm(enumerate(files), total=total_iterations):
@@ -194,4 +267,3 @@ class RavenShapes(Dataset):
         df.to_csv(dataset_file, index=False)
 
         log.debug("create_dataset_csv complete")
-        return True

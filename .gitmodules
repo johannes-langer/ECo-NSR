@@ -1,3 +1,6 @@
 [submodule "src/data/RAVEN_FAIR"]
 	path = src/data/RAVEN_FAIR
 	url = git@github.com:johannes-langer/RAVEN_FAIR.git
+[submodule "src/representation/PyTorch-VAE"]
+	path = src/representation/PyTorch-VAE
+	url = git@github.com:johannes-langer/PyTorch-VAE.git

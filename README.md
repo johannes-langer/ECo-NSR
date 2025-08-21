@@ -7,6 +7,26 @@ _Supplementary material for the paper "Enabling Neuro-Symbolic Reasoning by Maki
 
 ## Reproducing Our Results
 
+We assume that all listed commands are run from the top directory and an environment where all required packages are installed. All steps should be completed by running
+
+```bash
+python main.py
+```
+
+If you want to trace the steps in more detail or only run parts of them (or not run them all at once), the components offer hook ins to be called directly
+
+### **1. Prepare Data**
+
+```bash
+python src/data/generate_raven.py
+```
+
+### **2. Train Segmentation**
+
+```bash
+python src/segmentation/segment.py
+```
+
 ## Using ECo-NSR with other datasets
 
 At this stage, while ECo-NSR needs little conceptual adjustment for suitable datasets, the code is heavily tailored to the data format of the RAVEN-F dataset. While we cannot account for every possible existing (and future) dataset, here are some directions to help you adjust the code to your needs:

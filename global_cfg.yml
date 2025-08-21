@@ -8,14 +8,16 @@ DATA:
     test: 2             # default
     save: 1             # default
     cocoapi: False      # default
-    train_ratio: 0.7
-    val_ratio: 0.15
-    test_ratio: 0.15
+    train_ratio: 0.9
+    val_ratio: 0.05     # due to the large overall dataset size and validation times during segmentation training
+    test_ratio: 0.05
     json_path: 'outputs/data/'
+    csv_path: 'outputs/data/'
   RavenShapes:
     dataset_file: 'outputs/data/RavenShapes.csv'
+    split: [0.8, 0.1, 0.1]
 MACHINE:
-  num_gpus: 1
+  num_gpus: 2
 SEGMENTATION:
   DATASETS:
     TRAIN: ['raven-f_train',]
@@ -28,7 +30,7 @@ SEGMENTATION:
     n_workers: 16
     lr: 0.00001
     checkpoint_every: 1 # checkpoint interval
-    val_every: 1        # validation interval
+    val_every: 0.25     # validation interval, validate every 4th "epoch"
     output_dir: 'outputs/segmentation'
   MODEL:
     ROI_per_image: 64
@@ -36,6 +38,26 @@ SEGMENTATION:
   EARLY_STOPPING:
     enable: True
     patience: 7
-    interval: 1
+    interval: 0.25      # should not be lower than TRAINING.val_every, equal is recommended
     metric: 'bbox/AP'
     mode: 'max'
+REPRESENTATION:
+  TRAINING:
+    batch_size: 64
+    patch_size: 128
+    num_workers: 16
+    lr: 0.001
+    weight_decay: 0.0
+    scheduler_gamma: 0.95
+    kld_weight: 0.00025
+    seed: 110200
+    max_epochs: 10
+    output: 'outputs/representation'
+  MODEL:
+    name: 'BetaTCVAE'
+    in_channels: 1
+    latent_dim: 6
+    anneal_steps: 10000
+    alpha: 1.
+    beta: 6.
+    gamma: 1.

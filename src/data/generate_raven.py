@@ -4,15 +4,15 @@ import sys
 from pathlib import Path
 
 import splitfolders
-from dataset_registration import register_dataset_raw
 from detectron2.data.datasets import convert_to_coco_json
-from RAVEN_FAIR.src.main import main as raven_fair_main
 from yacs.config import CfgNode
 
 # find top directory
 CWD = [p for p in Path(__file__).parents if p.stem == "eco-nsr"][0]
 sys.path.append(CWD.as_posix())
 
+from src.data.RAVEN_FAIR.src.main import main as raven_fair_main  # noqa: E402
+from src.data.dataset_registration import register_dataset_raw  # noqa: E402
 
 def generate_raven():
     """
@@ -58,8 +58,6 @@ def generate_raven():
         ),
         group_prefix=2,
         move=True,
-    ) if cfg.DATA.RAVEN.num_samples <= 1000 else os.system(
-        f'splitfolders --output {os.path.join(cfg.DATA.path, "_RAVEN-F")} --ratio {cfg.DATA.RAVEN.train_ratio} {cfg.DATA.RAVEN.val_ratio} {cfg.DATA.RAVEN.test_ratio} --group_prefix 2 --move --seed {cfg.DATA.RAVEN.seed} {os.path.join(cfg.DATA.path, "RAVEN-F")}'
     )
 
     # clean up
