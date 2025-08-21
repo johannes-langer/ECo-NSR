@@ -5,6 +5,7 @@ from pathlib import Path
 from shutil import copyfile
 
 import lightning as L
+import numpy as np
 import torch
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
@@ -13,10 +14,11 @@ from yacs.config import CfgNode
 
 CWD = [p for p in Path(__file__).parents if p.stem == "eco-nsr"][0]
 sys.path.append(CWD.as_posix())
+sys.path.append(os.path.join(CWD, "src", "representation", "PyTorch_VAE"))
 
 from src import log  # noqa: E402
 from src.data.RavenShapes import RavenShapesDataModule  # noqa: E402
-from src.representation.PyTorch_VAE.experiment import VAEXperiment  # noqa: E402
+from src.representation.bTCVAExperiment import bTCVAExperiment  # noqa: E402
 from src.representation.PyTorch_VAE.models import *  # noqa: E402, F403
 from src.representation.PyTorch_VAE.utils import seed_everything  # noqa: E402
 
@@ -34,20 +36,19 @@ def train_vae():
         name=global_cfg.REPRESENTATION.MODEL.name,
     )
 
-    Path(os.path.join(global_cfg.REPRESENTATION.TRAINING.output, "Samples")).mkdir(
+    Path(os.path.join(tb_logger.log_dir, "Samples")).mkdir(parents=True, exist_ok=True)
+    Path(os.path.join(tb_logger.log_dir, "Reconstructions")).mkdir(
         parents=True, exist_ok=True
     )
-    Path(
-        os.path.join(global_cfg.REPRESENTATION.TRAINING.output, "Reconstructions")
-    ).mkdir(parents=True, exist_ok=True)
 
     seed_everything(global_cfg.REPRESENTATION.TRAINING.seed, deterministic=False)
 
     # Model
     model = vae_models[global_cfg.REPRESENTATION.MODEL.name](  # noqa: F405
-        global_cfg.REPRESENTATION.MODEL
+        hidden_dims=[32] * int(np.log2(global_cfg.REPRESENTATION.TRAINING.patch_size / 4)),
+        **global_cfg.REPRESENTATION.MODEL,
     )
-    experiment = VAEXperiment(
+    experiment = bTCVAExperiment(
         model,
         params={
             "LR": global_cfg.REPRESENTATION.TRAINING.lr,
@@ -60,9 +61,7 @@ def train_vae():
     )
 
     # Data
-    data = RavenShapesDataModule(
-        global_cfg.REPRESENTATION.DATA, global_cfg.MACHINE.num_gpus > 0
-    )
+    data = RavenShapesDataModule(global_cfg, global_cfg.MACHINE.num_gpus > 0)
     data.setup()
 
     # Trainer
@@ -74,7 +73,7 @@ def train_vae():
                 checkpointer := ModelCheckpoint(
                     save_top_k=1,
                     dirpath=os.path.join(
-                        global_cfg.REPRESENTATION.TRAINING.output, "checkpoints"
+                        tb_logger.log_dir, "checkpoints"
                     ),
                     monitor="val_loss",
                     save_last=True,
@@ -88,7 +87,7 @@ def train_vae():
             "devices": list(range(global_cfg.MACHINE.num_gpus))
             if torch.cuda.is_available()
             else None,
-            "max_epochs": global_cfg.max_epochs,
+            "max_epochs": global_cfg.REPRESENTATION.TRAINING.max_epochs,
         },
     )
 
@@ -110,14 +109,20 @@ def train_vae():
         pass
 
     # cleanup
-    for subdir in Path(os.path.join(global_cfg.REPRESENTATION.TRAINING.output, global_cfg.REPRESENTATION.MODEL.name)).iterdir():
+    for subdir in Path(
+        os.path.join(
+            global_cfg.REPRESENTATION.TRAINING.output,
+            global_cfg.REPRESENTATION.MODEL.name,
+        )
+    ).iterdir():
         if subdir.is_dir():
             if subdir.joinpath("checkpints") in subdir.iterdir():
                 continue
             else:
                 os.system(f"rm -rf {subdir}")
-                print(f"Removed directory: {subdir} artifact resulting form multiprocessing.")
-
+                print(
+                    f"Removed directory: {subdir} artifact resulting form multiprocessing."
+                )
 
 
 if __name__ == "__main__":

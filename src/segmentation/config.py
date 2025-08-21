@@ -7,7 +7,7 @@ from detectron2 import model_zoo
 from detectron2.config import get_cfg
 from yacs.config import CfgNode
 
-CWD = [p for p in Path().resolve().parents if p.stem == "eco-nsr"][0]
+CWD = [p for p in Path(__file__).parents if p.stem == "eco-nsr"][0]
 sys.path.append(CWD.as_posix())
 
 

@@ -9,7 +9,6 @@ import lightning as L
 import numpy as np
 import pandas as pd
 import torch
-from lightning.pytorch.utilities.types import EVAL_DATALOADERS
 from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision.transforms import Compose, Resize, ToTensor
 from tqdm import tqdm
@@ -41,7 +40,6 @@ class RavenShapesDataModule(L.LightningDataModule):
                 cfg.REPRESENTATION.TRAINING.patch_size,
                 cfg.REPRESENTATION.TRAINING.patch_size,
             )),
-            lambda x: x[0].unsqueeze(0),  # only one channel is required
         ])
 
     def setup(self, *args, **kwargs) -> None:
@@ -123,6 +121,7 @@ class RavenShapes(Dataset):
             Transformations to apply to the image
         """
         self.img_dir = image_dir
+        self.dataset_file = dataset_file
         if not os.path.exists(dataset_file):
             self.create_dataset_csv(dataset_file)
 
@@ -138,8 +137,8 @@ class RavenShapes(Dataset):
         Get bounding box crop of item `idx`.
         """
         item_data = self.img_labels.iloc[idx]
-        img_file = os.path.join(self.img_dir, item_data[0])
-        ids = item_data[1].split("_")
+        img_file = os.path.join(self.img_dir, item_data.iloc[0])
+        ids = item_data.iloc[1].split("_")
 
         def get_id(id: int) -> int:
             return int(ids[id])
@@ -164,17 +163,20 @@ class RavenShapes(Dataset):
         # calculate bounding box
         center_x = np.ceil(real_bbox[1] * width)
         center_y = np.ceil(real_bbox[0] * height)
-        ent_width = np.ceil(real_bbox[3] * width)
-        ent_height = np.ceil(real_bbox[2] * height)
+        ent_width = real_bbox[3] * width
+        ent_height = real_bbox[2] * height
         bbox = [
-            np.floor(center_x - 0.5 * ent_width),
-            np.floor(center_y - 0.5 * ent_height),
+            max(np.floor(center_x - 0.5 * ent_width), 0),
+            max(np.floor(center_y - 0.5 * ent_height), 0),
             np.ceil(center_x + 0.5 * ent_width),
             np.ceil(center_y + 0.5 * ent_height),
         ]
 
         # crop image
         img = img[int(bbox[1]) : int(bbox[3]), int(bbox[0]) : int(bbox[2]), :]
+
+        if img.shape[0] == 0 or img.shape[1] == 0:
+            print(ids)
 
         if self.transform:
             img = self.transform(img)
@@ -191,7 +193,7 @@ class RavenShapes(Dataset):
         dataset_file : str
             Path to the to-be-created file
         """
-        log = logging.getLogger("representation_dataset_csv")
+        log = logging.getLogger("representation_data")
         log.info(
             "Creating .csv file for the representation torch.Dataset. This should only happen once."
         )
@@ -246,6 +248,10 @@ class RavenShapes(Dataset):
 
                     # Loop Level 4: Shapes
                     for id4, l4 in enumerate(shapes):
+                        bbox = convert_stringlist(l4["@real_bbox"])
+                        if bbox[2] <= 0.05 or bbox[3] <= 0.05:
+                            continue  # skip entities that are too small as they probably aren't shapes.
+
                         type_id = int(l4["@Type"])
 
                         img_file.append(

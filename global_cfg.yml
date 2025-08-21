@@ -16,8 +16,10 @@ DATA:
   RavenShapes:
     dataset_file: 'outputs/data/RavenShapes.csv'
     split: [0.8, 0.1, 0.1]
+
 MACHINE:
-  num_gpus: 2
+  num_gpus: 1
+
 SEGMENTATION:
   DATASETS:
     TRAIN: ['raven-f_train',]
@@ -25,7 +27,7 @@ SEGMENTATION:
     TEST: ['raven-f_test',]
   TRAINING:
     seed: 110200
-    max_epochs: 50
+    max_epochs: 10
     batch_size: 128
     n_workers: 16
     lr: 0.00001
@@ -41,9 +43,10 @@ SEGMENTATION:
     interval: 0.25      # should not be lower than TRAINING.val_every, equal is recommended
     metric: 'bbox/AP'
     mode: 'max'
+    
 REPRESENTATION:
   TRAINING:
-    batch_size: 64
+    batch_size: 1024
     patch_size: 128
     num_workers: 16
     lr: 0.001
@@ -55,7 +58,7 @@ REPRESENTATION:
     output: 'outputs/representation'
   MODEL:
     name: 'BetaTCVAE'
-    in_channels: 1
+    in_channels: 3
     latent_dim: 6
     anneal_steps: 10000
     alpha: 1.

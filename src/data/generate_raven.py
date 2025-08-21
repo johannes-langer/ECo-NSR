@@ -81,6 +81,8 @@ def generate_coco_json():
             dataset_name="raven-f_" + split,
             output_file=os.path.join(cfg.DATA.RAVEN.json_path, f"raven-f_{split}.json"),
         )
+        # cleanup
+        os.remove(os.path.join(cfg.DATA.path, f"raven-f_{split}.json.lock"))
 
 if __name__ == "__main__":
     generate_raven()

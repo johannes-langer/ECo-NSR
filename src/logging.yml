@@ -12,8 +12,8 @@ loggers:
     level: INFO
     handlers: []
     propagate: no
-  representation_dataset_csv:
-    level: INFO
+  representation_data:
+    level: DEBUG
     handlers:  []
     propagate: no
   train_vae:
