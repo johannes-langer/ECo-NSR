@@ -16,6 +16,8 @@ DATA:
   RavenShapes:
     dataset_file: 'outputs/data/RavenShapes.csv'
     split: [0.8, 0.1, 0.1]
+  RavenMatrices:
+    dataset_file: 'outputs/data/RavenMatrices.csv'
 
 MACHINE:
   num_gpus: 1
@@ -29,7 +31,7 @@ SEGMENTATION:
     seed: 110200
     max_epochs: 10
     batch_size: 128
-    n_workers: 16
+    n_workers: 4
     lr: 0.00001
     checkpoint_every: 1 # checkpoint interval
     val_every: 0.25     # validation interval, validate every 4th "epoch"

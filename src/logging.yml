@@ -8,15 +8,19 @@ handlers:
     formatter: simple
     stream: ext://sys.stdout
 loggers:
-  segmentation_training:
-    level: INFO
-    handlers: []
-    propagate: no
   representation_data:
     level: DEBUG
     handlers:  []
     propagate: no
-  train_vae:
+  reasoning_data:
+    level: DEBUG
+    handlers: []
+    propagate: no
+  segmentation_training:
+    level: INFO
+    handlers: []
+    propagate: no
+  vae_training:
     level: INFO
     handlers: []
     propagate: no

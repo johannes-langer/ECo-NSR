@@ -25,7 +25,7 @@ from src.representation.PyTorch_VAE.utils import seed_everything  # noqa: E402
 
 def train_vae():
     """ """
-    logger = logging.getLogger("train_vae")
+    logger = logging.getLogger("vae_training")
 
     with open(os.path.join(CWD, "global_cfg.yml"), "r") as f:
         global_cfg = CfgNode.load_cfg(f)
@@ -116,7 +116,7 @@ def train_vae():
         )
     ).iterdir():
         if subdir.is_dir():
-            if subdir.joinpath("checkpints") in subdir.iterdir():
+            if subdir.joinpath("checkpoints") in subdir.iterdir():
                 continue
             else:
                 os.system(f"rm -rf {subdir}")

@@ -291,29 +291,4 @@ class Trainer(DefaultTrainer):
         if len(results) == 1:
             results = list(results.values())[0]
 
-        # reduce results in validation to single dict. There is no need to distinguish between datasets.
-        if len(results) > 1 and comm.is_main_process():
-            temp = {}
-            keys = list(
-                results[cfg.DATASETS.VAL[0]].keys()
-            )  # Every dataset is evaluated using the same metrics.
-            subkeys = list(results[cfg.DATASETS.VAL[0]][keys[0]].keys())
-            for key in keys:
-                _dict = {}
-                for subkey in subkeys:
-                    n = 0
-                    val = 0
-                    for dataset in cfg.DATASETS.VAL:
-                        try:
-                            v = float(results[dataset][key][subkey])
-                        except Exception as e:
-                            raise ValueError(
-                                f"[VALIDATE] inference results should be dicts of floats., got {dataset}/{key} = {results[dataset][key][subkey]}"
-                            ) from e
-                        val += v
-                        n += 1
-                    _dict[subkey] = val / n if n != 0 else np.nan
-                temp[key] = _dict
-            results = temp
-
         return results

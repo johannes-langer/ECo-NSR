@@ -20,7 +20,7 @@ class EarlyStopper(HookBase):
         cfg : CfgNode
             Training config node containing EarlyStopping parameters.
         """
-        self.__logger = logging.getLogger(__name__)
+        self.__logger = logging.getLogger("segmentation_training")
         self.__patience = cfg.EARLY_STOPPING.PATIENCE
         self.__counter = 0
         self.__val_period = cfg.EARLY_STOPPING.VAL_PERIOD
@@ -41,7 +41,7 @@ class EarlyStopper(HookBase):
         """
         Update best metric and iteration.
         """
-        self.__logger.info("EarlyStopper: _update_best() called.")
+        self.__logger.debug("EarlyStopper: _update_best() called.")
         if np.isnan(val) or np.isinf(val):
             return False
         self.best_metric = val
@@ -52,7 +52,7 @@ class EarlyStopper(HookBase):
         """
         Check for improvement.
         """
-        print(
+        self.__logger.info(
             f"Early Stopper: Considering early stopping at patience {self.__counter}/{self.__patience}."
         )
         metric_tuple = self.trainer.storage.latest().get(self.__val_metric)
@@ -70,10 +70,10 @@ class EarlyStopper(HookBase):
         elif self._compare(latest_metric, self.best_metric):
             self._update_best(latest_metric, metric_iter)
             self.__counter = 0
-            print("Early Stopper: New best model found, resetting patience counter.")
+            self.__logger.info("Early Stopper: New best model found, resetting patience counter.")
         else:
             self.__counter += 1
-            print(
+            self.__logger.info(
                 f"Early Stopper: Model did not improve since last {self.__counter} validation steps."
             )
 
