@@ -4,7 +4,6 @@ import sys
 from logging import getLogger
 from pathlib import Path
 from io import StringIO
-from turtle import st
 from typing import Union
 
 import numpy as np

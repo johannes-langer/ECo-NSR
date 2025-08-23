@@ -16,7 +16,6 @@ CWD = [p for p in Path(__file__).parents if p.stem == "eco-nsr"][0]
 sys.path.append(CWD.as_posix())
 
 from src import log  # noqa: E402
-from src.data.RAVEN_FAIR.src.const import TYPE_VALUES as SHAPES  # noqa: E402
 from src.data.utils import get_xml  # noqa: E402
 
 # --- Classes ---
