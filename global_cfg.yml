@@ -66,3 +66,6 @@ REPRESENTATION:
     alpha: 1.
     beta: 6.
     gamma: 1.
+
+REASONING:
+  loc_grid_size: 16

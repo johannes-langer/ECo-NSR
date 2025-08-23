@@ -24,6 +24,10 @@ loggers:
     level: INFO
     handlers: []
     propagate: no
+  to_popper:
+    level: INFO
+    handlers: []
+    propagate: no
 root:
   level: INFO
   handlers: [console]
