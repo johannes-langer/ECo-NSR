@@ -20,7 +20,7 @@ DATA:
     dataset_file: 'outputs/data/RavenMatrices.csv'
 
 MACHINE:
-  num_gpus: 1
+  num_gpus: 2
 
 SEGMENTATION:
   DATASETS:
@@ -56,12 +56,12 @@ REPRESENTATION:
     scheduler_gamma: 0.95
     kld_weight: 0.00025
     seed: 110200
-    max_epochs: 10
+    max_epochs: 25
     output: 'outputs/representation'
   MODEL:
     name: 'BetaTCVAE'
     in_channels: 3
-    latent_dim: 6
+    latent_dim: 4
     anneal_steps: 10000
     alpha: 1.
     beta: 6.
@@ -69,3 +69,6 @@ REPRESENTATION:
 
 REASONING:
   loc_grid_size: 16
+  POPPER:
+    file_path: 'outputs/reasoning'
+    strategy: 'trial'

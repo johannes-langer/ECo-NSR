@@ -5,6 +5,10 @@ _Supplementary material for the paper "Enabling Neuro-Symbolic Reasoning by Maki
 
 ## Setup
 
+### Optional
+
+- Install the NuWLS-c anytime solver for Popper ([installation instructions](https://github.com/logic-and-learning-lab/Popper/blob/main/solvers.md))
+
 ## Reproducing Our Results
 
 We assume that all listed commands are run from the top directory and an environment where all required packages are installed. All steps should be completed by running

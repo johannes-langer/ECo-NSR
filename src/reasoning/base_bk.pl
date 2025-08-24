@@ -1,9 +1,9 @@
 % enable discontiguous for facts
-:- discontiguous n_shapes/3.
+:- discontiguous n_shapes/2.
 :- discontiguous shape_prop/3.
 :- discontiguous has_shape/2.
 
-select(A, B, C).
+select_(A, B, C) :- select(A, B, C).
 
 same_in_prop(S, T, P) :- shape_prop(S, P, V), shape_prop(T, P, V).
 
