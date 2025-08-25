@@ -1,8 +1,11 @@
+import argparse
 import logging
 import os
 import sys
 from pathlib import Path
 from shutil import copyfile
+from typing import Optional
+import warnings
 
 import lightning as L
 import numpy as np
@@ -23,8 +26,15 @@ from src.representation.PyTorch_VAE.models import *  # noqa: E402, F403
 from src.representation.PyTorch_VAE.utils import seed_everything  # noqa: E402
 
 
-def train_vae():
-    """ """
+def train_vae(resume : Optional[str] = None):
+    """
+    Train vae model based on global_cfg.yml.
+
+    Parameters
+    ----------
+    resume : str (Optional)
+        Path to a checkpoint file. If given, resume training from that file.
+    """
     logger = logging.getLogger("vae_training")
 
     with open(os.path.join(CWD, "global_cfg.yml"), "r") as f:
@@ -45,7 +55,8 @@ def train_vae():
 
     # Model
     model = vae_models[global_cfg.REPRESENTATION.MODEL.name](  # noqa: F405
-        hidden_dims=[32] * int(np.log2(global_cfg.REPRESENTATION.TRAINING.patch_size / 4)),
+        hidden_dims=[32]
+        * int(np.log2(global_cfg.REPRESENTATION.TRAINING.patch_size / 4)),
         **global_cfg.REPRESENTATION.MODEL,
     )
     experiment = bTCVAExperiment(
@@ -72,9 +83,7 @@ def train_vae():
             (
                 checkpointer := ModelCheckpoint(
                     save_top_k=1,
-                    dirpath=os.path.join(
-                        tb_logger.log_dir, "checkpoints"
-                    ),
+                    dirpath=os.path.join(tb_logger.log_dir, "checkpoints"),
                     monitor="val_loss",
                     save_last=True,
                 )
@@ -92,7 +101,7 @@ def train_vae():
     )
 
     logger.info(f"Training VAE model: {global_cfg.REPRESENTATION.MODEL.name}")
-    trainer.fit(experiment, data)
+    trainer.fit(experiment, data, ckpt_path = resume)
     logger.info("Training Finished.")
 
     # rename best checkpoint
@@ -126,5 +135,18 @@ def train_vae():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--resume",
+        type=str,
+        required=False,
+        default=None,
+        help="Path to the checkpoint file to resume training from",
+    )
+    args = parser.parse_args()
+
     log.init()
-    train_vae()
+    with warnings.catch_warnings():
+        warnings.simplefilter(action = "ignore", category = FutureWarning)
+        # filters FutureWarning: functools.partial will be a method descriptor in future Python versions; wrap it in enum.member() if you want to preserve the old behavior
+        train_vae(resume=args.resume)

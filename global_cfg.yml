@@ -48,7 +48,7 @@ SEGMENTATION:
     
 REPRESENTATION:
   TRAINING:
-    batch_size: 1024
+    batch_size: 1536
     patch_size: 128
     num_workers: 16
     lr: 0.001
@@ -56,7 +56,7 @@ REPRESENTATION:
     scheduler_gamma: 0.95
     kld_weight: 0.00025
     seed: 110200
-    max_epochs: 25
+    max_epochs: 40
     output: 'outputs/representation'
   MODEL:
     name: 'BetaTCVAE'
